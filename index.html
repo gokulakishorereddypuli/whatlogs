@@ -4,53 +4,101 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Balanced Security Captcha</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; }
-        .captcha-card { border-radius: 12px; border: none; }
-        .canvas-box { 
-            background: #fff; 
-            padding: 8px; 
-            border: 2px solid #ced4da; 
-            border-radius: 8px;
-            display: inline-flex;
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            background: #f0f2f5;
+            min-height: 100vh;
+            display: flex;
             align-items: center;
+            justify-content: center;
+            margin: 0;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .container { width: 100%; max-width: 400px; padding: 16px; }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.12);
+            padding: 32px;
+        }
+        h4 { text-align: center; margin: 0 0 24px; font-weight: 700; font-size: 1.25rem; }
+        .mb { margin-bottom: 16px; }
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #6c757d;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type="text"]:focus { border-color: #0d6efd; }
+        .canvas-box {
+            background: #fff;
+            padding: 8px;
+            border: 2px solid #ced4da;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 8px;
             overflow: hidden;
         }
         #captchaCanvas { border-radius: 4px; flex: 1; min-width: 0; max-width: calc(100% - 48px); display: block; }
-        .refresh-btn { cursor: pointer; color: #0d6efd; font-size: 1.5rem; transition: 0.3s; flex-shrink: 0; white-space: nowrap; }
+        .refresh-btn { cursor: pointer; color: #0d6efd; font-size: 1.5rem; transition: transform 0.3s, color 0.3s; flex-shrink: 0; white-space: nowrap; padding: 0 8px; border: none; background: none; }
         .refresh-btn:hover { color: #0a58ca; transform: rotate(90deg); }
+        #captchaInput { font-size: 1.125rem; text-align: center; }
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background: #0d6efd;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn:hover { background: #0a58ca; }
+        #feedback { text-align: center; margin-top: 12px; font-size: 0.875rem; font-weight: 700; }
+        .text-success { color: #198754; }
+        .text-danger { color: #dc3545; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="row justify-content-center">
-        <div class="col-md-5 col-lg-4">
-            <div class="card captcha-card shadow">
-                <div class="card-body p-4">
-                    <h4 class="text-center mb-4 fw-bold">Secure Access</h4>
-                    <form id="captchaForm">
-                        <div class="mb-3">
-                            <input type="text" class="form-control" placeholder="Email Address" required>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label class="form-label small fw-bold text-secondary">Verify Identity</label>
-                            <div class="canvas-box w-100 justify-content-between mb-2">
-                                <canvas id="captchaCanvas" width="200" height="60"></canvas>
-                                <span class="refresh-btn px-2" onclick="generateCaptcha()" title="Refresh Code">&#x21bb;</span>
-                            </div>
-                            <input type="text" id="captchaInput" class="form-control form-control-lg text-center" 
-                                   placeholder="Enter the code" maxlength="6" autocomplete="off" required>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Sign In</button>
-                        <div id="feedback" class="text-center mt-3 small fw-bold"></div>
-                    </form>
-                </div>
+    <div class="card">
+        <h4>Secure Access</h4>
+        <form id="captchaForm">
+            <div class="mb">
+                <input type="text" placeholder="Email Address" required>
             </div>
-        </div>
+
+            <div class="mb">
+                <label class="form-label">Verify Identity</label>
+                <div class="canvas-box">
+                    <canvas id="captchaCanvas" width="200" height="60"></canvas>
+                    <button type="button" class="refresh-btn" id="refreshBtn" title="Refresh Code">&#x21bb;</button>
+                </div>
+                <input type="text" id="captchaInput"
+                       placeholder="Enter the code" maxlength="6" autocomplete="off" required>
+            </div>
+
+            <button type="submit" class="btn">Sign In</button>
+            <div id="feedback"></div>
+        </form>
     </div>
 </div>
 
@@ -139,17 +187,18 @@
 
         if (userHashed === hashedStorage) {
             feedback.innerText = "SUCCESS: Verified!";
-            feedback.className = "text-success text-center mt-3 fw-bold";
+            feedback.className = "text-success";
             // Proceed to backend...
         } else {
             feedback.innerText = "FAILED: Try Again.";
-            feedback.className = "text-danger text-center mt-3 fw-bold";
+            feedback.className = "text-danger";
             generateCaptcha();
             document.getElementById("captchaInput").value = "";
         }
     };
 
     window.onload = generateCaptcha;
+    document.getElementById("refreshBtn").addEventListener("click", generateCaptcha);
 </script>
 
 </body>
