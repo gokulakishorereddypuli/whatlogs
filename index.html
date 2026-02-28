@@ -140,9 +140,12 @@
         const feedback = document.getElementById("feedback");
 
         if (userHashed === hashedStorage) {
-            feedback.innerText = "SUCCESS: Verified!";
-            feedback.className = "text-success text-center mt-3 fw-bold";
-            // Proceed to backend...
+            document.getElementById("captchaForm").classList.add("d-none");
+            const successDiv = document.createElement("div");
+            successDiv.className = "alert alert-success text-center fw-bold";
+            successDiv.setAttribute("role", "alert");
+            successDiv.textContent = "✅ Welcome! You have successfully signed in.";
+            feedback.appendChild(successDiv);
         } else {
             feedback.innerText = "FAILED: Try Again.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
