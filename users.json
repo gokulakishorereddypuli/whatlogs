@@ -1,1 +1,20 @@
-[]
+[
+  {
+    "masterId": "770221d2138c1534e51dff3eaf5dada8",
+    "username": "john",
+    "passwordHash": "9b8769a4a742959a2d0298c36fb70623f2dfacda8436237df08d8dfd5b37374c",
+    "fullName": "John Doe",
+    "email": "john@example.com",
+    "contact": "555-1234",
+    "active": true
+  },
+  {
+    "masterId": "e2d05e281be68143e09a8c380385cacd",
+    "username": "jane",
+    "passwordHash": "1d4598d1949b47f7f211134b639ec32238ce73086a83c2f745713b3f12f817e5",
+    "fullName": "Jane Smith",
+    "email": "jane@example.com",
+    "contact": "555-5678",
+    "active": true
+  }
+]

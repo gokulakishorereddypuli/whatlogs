@@ -68,6 +68,15 @@
                     <!-- Signup Form -->
                     <form id="signupForm" style="display:none;">
                         <div class="mb-3">
+                            <input type="text" id="signupFullName" class="form-control" placeholder="Full Name">
+                        </div>
+                        <div class="mb-3">
+                            <input type="email" id="signupEmail" class="form-control" placeholder="Email">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" id="signupContact" class="form-control" placeholder="Contact Number">
+                        </div>
+                        <div class="mb-3">
                             <input type="text" id="signupUsername" class="form-control" placeholder="Username" required>
                         </div>
                         <div class="mb-3">
@@ -87,60 +96,9 @@
     </div>
 </div>
 
-<!-- Welcome Panel (regular users after login) -->
-<div class="container" id="welcomePanel" style="display:none;">
-    <div class="row justify-content-center">
-        <div class="col-md-5 col-lg-4">
-            <div class="card auth-card shadow">
-                <div class="card-body p-4 text-center">
-                    <h4 class="fw-bold mb-3">Welcome, <span id="welcomeUsername"></span>!</h4>
-                    <p class="text-muted">You have successfully logged in.</p>
-                    <button class="btn btn-outline-secondary w-100 fw-bold" onclick="logout()">Logout</button>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Admin Panel -->
-<div class="container-fluid" id="adminPanel" style="display:none;">
-    <div class="row justify-content-center">
-        <div class="col-md-8 col-lg-7">
-            <div class="card auth-card shadow">
-                <div class="card-body p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h4 class="fw-bold mb-0">Admin Panel</h4>
-                        <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="logout()">Logout</button>
-                    </div>
-                    <h6 class="text-muted mb-3">User Management</h6>
-                    <div id="userList"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <script>
-    const ADMIN_USERNAME = 'admin';
-    const STORAGE_KEY = 'whatlogs_users';
     let hashedStorage = "";
     let autoTimer;
-    let adminPasswordHash = "";
-
-    // Pre-compute admin password hash on load
-    sha256('admin').then(h => { adminPasswordHash = h; });
-
-    function getUsers() {
-        try {
-            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        } catch {
-            return [];
-        }
-    }
-
-    function saveUsers(users) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
-    }
 
     async function sha256(str) {
         const buf = new TextEncoder().encode(str);
@@ -223,71 +181,7 @@
         }
     }
 
-    function logout() {
-        document.getElementById('authPanel').style.display = '';
-        document.getElementById('welcomePanel').style.display = 'none';
-        document.getElementById('adminPanel').style.display = 'none';
-        document.getElementById('loginForm').reset();
-        document.getElementById('loginFeedback').innerText = '';
-        generateCaptcha();
-    }
-
-    function escapeHtml(str) {
-        return str
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-    }
-
-    function renderAdminPanel() {
-        const users = getUsers();
-        const userList = document.getElementById('userList');
-        if (users.length === 0) {
-            userList.innerHTML = '<p class="text-muted text-center">No registered users yet.</p>';
-            return;
-        }
-        userList.innerHTML = `
-            <table class="table table-bordered table-hover align-middle">
-                <thead class="table-dark">
-                    <tr>
-                        <th>Username</th>
-                        <th class="text-center">Status</th>
-                        <th class="text-center">Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${users.map(u => `
-                        <tr>
-                            <td>${escapeHtml(u.username)}</td>
-                            <td class="text-center">
-                                ${u.active
-                                    ? '<span class="badge bg-success">Active</span>'
-                                    : '<span class="badge bg-secondary">Frozen</span>'}
-                            </td>
-                            <td class="text-center">
-                                ${u.active
-                                    ? `<button class="btn btn-sm btn-warning fw-bold" onclick="toggleUser('${escapeHtml(u.username)}', false)">Freeze</button>`
-                                    : `<button class="btn btn-sm btn-success fw-bold" onclick="toggleUser('${escapeHtml(u.username)}', true)">Activate</button>`}
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>`;
-    }
-
-    function toggleUser(username, active) {
-        const users = getUsers();
-        const user = users.find(u => u.username === username);
-        if (user) {
-            user.active = active;
-            saveUsers(users);
-            renderAdminPanel();
-        }
-    }
-
-    // Login: verify captcha then authenticate via localStorage
+    // Login: verify captcha then POST /login
     document.getElementById("loginForm").onsubmit = async function(e) {
         e.preventDefault();
         const userInput = document.getElementById("captchaInput").value;
@@ -304,60 +198,46 @@
 
         const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value;
-        const passwordHash = await sha256(password);
 
-        // Admin login check
-        if (username === ADMIN_USERNAME) {
-            if (passwordHash === adminPasswordHash) {
-                document.getElementById('authPanel').style.display = 'none';
-                document.getElementById('adminPanel').style.display = '';
-                renderAdminPanel();
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                sessionStorage.setItem('wl_token', data.token);
+                sessionStorage.setItem('wl_role', data.role);
+                sessionStorage.setItem('wl_username', username);
+                if (data.masterId) sessionStorage.setItem('wl_masterId', data.masterId);
+                if (data.role === 'admin') {
+                    window.location.href = '/admin/admin-home.html';
+                } else {
+                    window.location.href = '/user/user-home.html';
+                }
             } else {
-                feedback.innerText = "FAILED: Invalid username or password.";
+                feedback.innerText = "FAILED: " + (data.error || 'Login failed.');
                 feedback.className = "text-danger text-center mt-3 fw-bold";
                 generateCaptcha();
                 document.getElementById("captchaInput").value = "";
             }
-            return;
-        }
-
-        // Regular user login
-        const users = getUsers();
-        const user = users.find(u => u.username === username);
-        if (!user || user.passwordHash !== passwordHash) {
-            feedback.innerText = "FAILED: Invalid username or password.";
+        } catch {
+            feedback.innerText = "Error connecting to server.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
-            generateCaptcha();
-            document.getElementById("captchaInput").value = "";
-            return;
         }
-        if (!user.active) {
-            feedback.innerText = "FAILED: Your account has been frozen. Please contact admin.";
-            feedback.className = "text-danger text-center mt-3 fw-bold";
-            generateCaptcha();
-            document.getElementById("captchaInput").value = "";
-            return;
-        }
-
-        // Successful user login
-        document.getElementById('authPanel').style.display = 'none';
-        document.getElementById('welcomeUsername').innerText = username;
-        document.getElementById('welcomePanel').style.display = '';
     };
 
-    // Signup: store hashed password in localStorage
+    // Signup: POST /signup with all fields
     document.getElementById("signupForm").onsubmit = async function(e) {
         e.preventDefault();
         const feedback = document.getElementById("signupFeedback");
         const username = document.getElementById("signupUsername").value.trim();
         const password = document.getElementById("signupPassword").value;
         const confirm = document.getElementById("signupConfirm").value;
-
-        if (username === ADMIN_USERNAME) {
-            feedback.innerText = "FAILED: This username is reserved.";
-            feedback.className = "text-danger text-center mt-3 fw-bold";
-            return;
-        }
+        const fullName = document.getElementById("signupFullName").value.trim();
+        const email = document.getElementById("signupEmail").value.trim();
+        const contact = document.getElementById("signupContact").value.trim();
 
         if (password !== confirm) {
             feedback.innerText = "Passwords do not match.";
@@ -365,20 +245,25 @@
             return;
         }
 
-        const users = getUsers();
-        if (users.find(u => u.username === username)) {
-            feedback.innerText = "FAILED: Username already exists.";
+        try {
+            const res = await fetch('/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, fullName, email, contact })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                feedback.innerText = "SUCCESS: Account created. You can now login.";
+                feedback.className = "text-success text-center mt-3 fw-bold";
+                document.getElementById("signupForm").reset();
+            } else {
+                feedback.innerText = "FAILED: " + (data.error || 'Signup failed.');
+                feedback.className = "text-danger text-center mt-3 fw-bold";
+            }
+        } catch {
+            feedback.innerText = "Error connecting to server.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
-            return;
         }
-
-        const passwordHash = await sha256(password);
-        users.push({ username, passwordHash, active: true });
-        saveUsers(users);
-
-        feedback.innerText = "SUCCESS: Account created. You can now login.";
-        feedback.className = "text-success text-center mt-3 fw-bold";
-        document.getElementById("signupForm").reset();
     };
 
     window.onload = generateCaptcha;
