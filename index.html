@@ -30,24 +30,56 @@
             <div class="card captcha-card shadow">
                 <div class="card-body p-4">
                     <h4 class="text-center mb-4 fw-bold">Secure Access</h4>
-                    <form id="captchaForm">
+
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-tabs mb-4" id="authTabs">
+                        <li class="nav-item w-50 text-center">
+                            <a class="nav-link active fw-bold" id="loginTab" href="#" onclick="showTab('login'); return false;">Login</a>
+                        </li>
+                        <li class="nav-item w-50 text-center">
+                            <a class="nav-link fw-bold" id="signupTab" href="#" onclick="showTab('signup'); return false;">Sign Up</a>
+                        </li>
+                    </ul>
+
+                    <!-- Login Form -->
+                    <form id="loginForm">
                         <div class="mb-3">
-                            <input type="text" class="form-control" placeholder="Email Address" required>
+                            <input type="text" id="loginUsername" class="form-control" placeholder="Username" required>
                         </div>
-                        
+                        <div class="mb-3">
+                            <input type="password" id="loginPassword" class="form-control" placeholder="Password" required>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary">Verify Identity</label>
                             <div class="canvas-box w-100 justify-content-between mb-2">
                                 <canvas id="captchaCanvas" width="200" height="60"></canvas>
                                 <span class="refresh-btn px-2" onclick="generateCaptcha()" title="Refresh Code">&#x21bb;</span>
                             </div>
-                            <input type="text" id="captchaInput" class="form-control form-control-lg text-center" 
+                            <input type="text" id="captchaInput" class="form-control form-control-lg text-center"
                                    placeholder="Enter the code" maxlength="6" autocomplete="off" required>
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Sign In</button>
-                        <div id="feedback" class="text-center mt-3 small fw-bold"></div>
+                        <div id="loginFeedback" class="text-center mt-3 small fw-bold"></div>
                     </form>
+
+                    <!-- Signup Form -->
+                    <form id="signupForm" style="display:none;">
+                        <div class="mb-3">
+                            <input type="text" id="signupUsername" class="form-control" placeholder="Username" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" id="signupPassword" class="form-control" placeholder="Password" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" id="signupConfirm" class="form-control" placeholder="Confirm Password" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold py-2">Create Account</button>
+                        <div id="signupFeedback" class="text-center mt-3 small fw-bold"></div>
+                    </form>
+
                 </div>
             </div>
         </div>
@@ -131,21 +163,97 @@
         }
     }
 
-    document.getElementById("captchaForm").onsubmit = async function(e) {
+    function showTab(tab) {
+        const loginForm = document.getElementById('loginForm');
+        const signupForm = document.getElementById('signupForm');
+        const loginTab = document.getElementById('loginTab');
+        const signupTab = document.getElementById('signupTab');
+
+        if (tab === 'login') {
+            loginForm.style.display = '';
+            signupForm.style.display = 'none';
+            loginTab.classList.add('active');
+            signupTab.classList.remove('active');
+        } else {
+            loginForm.style.display = 'none';
+            signupForm.style.display = '';
+            loginTab.classList.remove('active');
+            signupTab.classList.add('active');
+        }
+    }
+
+    // Login: verify captcha then POST credentials to /login
+    document.getElementById("loginForm").onsubmit = async function(e) {
         e.preventDefault();
         const userInput = document.getElementById("captchaInput").value;
         const userHashed = await sha256(userInput);
-        const feedback = document.getElementById("feedback");
+        const feedback = document.getElementById("loginFeedback");
 
-        if (userHashed === hashedStorage) {
-            feedback.innerText = "SUCCESS: Verified!";
-            feedback.className = "text-success text-center mt-3 fw-bold";
-            // Proceed to backend...
-        } else {
-            feedback.innerText = "FAILED: Try Again.";
+        if (userHashed !== hashedStorage) {
+            feedback.innerText = "CAPTCHA FAILED: Try Again.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
             generateCaptcha();
             document.getElementById("captchaInput").value = "";
+            return;
+        }
+
+        const username = document.getElementById("loginUsername").value.trim();
+        const password = document.getElementById("loginPassword").value;
+
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                feedback.innerText = "SUCCESS: " + data.message;
+                feedback.className = "text-success text-center mt-3 fw-bold";
+            } else {
+                feedback.innerText = "FAILED: " + data.error;
+                feedback.className = "text-danger text-center mt-3 fw-bold";
+                generateCaptcha();
+                document.getElementById("captchaInput").value = "";
+            }
+        } catch {
+            feedback.innerText = "Error: Could not reach server.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+        }
+    };
+
+    // Signup: POST credentials to /signup (server hashes password before storing)
+    document.getElementById("signupForm").onsubmit = async function(e) {
+        e.preventDefault();
+        const feedback = document.getElementById("signupFeedback");
+        const username = document.getElementById("signupUsername").value.trim();
+        const password = document.getElementById("signupPassword").value;
+        const confirm = document.getElementById("signupConfirm").value;
+
+        if (password !== confirm) {
+            feedback.innerText = "Passwords do not match.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+            return;
+        }
+
+        try {
+            const res = await fetch('/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                feedback.innerText = "SUCCESS: " + data.message;
+                feedback.className = "text-success text-center mt-3 fw-bold";
+                document.getElementById("signupForm").reset();
+            } else {
+                feedback.innerText = "FAILED: " + data.error;
+                feedback.className = "text-danger text-center mt-3 fw-bold";
+            }
+        } catch {
+            feedback.innerText = "Error: Could not reach server.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
         }
     };
 

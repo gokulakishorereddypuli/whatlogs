@@ -1,0 +1,14 @@
+{
+  "name": "whatlogs",
+  "version": "1.0.0",
+  "description": "Secure signup/login with hashed password storage in JSON",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "express": "^5.2.1"
+  }
+}
