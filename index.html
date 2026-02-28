@@ -191,7 +191,6 @@
         const feedback = document.getElementById("loginFeedback");
 
         if (userHashed === hashedStorage) {
-            document.getElementById("captchaForm").classList.add("d-none");
             const successDiv = document.createElement("div");
             successDiv.className = "alert alert-success text-center fw-bold";
             successDiv.setAttribute("role", "alert");
