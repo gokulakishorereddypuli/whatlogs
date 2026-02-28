@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure Access</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta name="description" content="Balanced Security Captcha - Secure access verification">
+    <title>Balanced Security Captcha</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; }
         .auth-card { border-radius: 12px; border: none; }
@@ -96,6 +97,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     let hashedStorage = "";
     let autoTimer;
@@ -188,8 +190,15 @@
         const userHashed = await sha256(userInput);
         const feedback = document.getElementById("loginFeedback");
 
-        if (userHashed !== hashedStorage) {
-            feedback.innerText = "CAPTCHA FAILED: Try Again.";
+        if (userHashed === hashedStorage) {
+            document.getElementById("captchaForm").classList.add("d-none");
+            const successDiv = document.createElement("div");
+            successDiv.className = "alert alert-success text-center fw-bold";
+            successDiv.setAttribute("role", "alert");
+            successDiv.textContent = "✅ Welcome! You have successfully signed in.";
+            feedback.appendChild(successDiv);
+        } else {
+            feedback.innerText = "FAILED: Try Again.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
             generateCaptcha();
             document.getElementById("captchaInput").value = "";
