@@ -65,6 +65,7 @@
     }
 
     async function generateCaptcha() {
+        clearTimeout(autoTimer);
         const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
         let rawText = "";
         for (let i = 0; i < 6; i++) {
@@ -75,7 +76,6 @@
         drawCaptcha(rawText);
 
         // Auto-refresh logic (60 seconds)
-        clearTimeout(autoTimer);
         autoTimer = setTimeout(generateCaptcha, 60000);
     }
 
@@ -137,8 +137,10 @@
         const feedback = document.getElementById("feedback");
 
         if (userHashed === hashedStorage) {
+            clearTimeout(autoTimer);
             feedback.innerText = "SUCCESS: Verified!";
             feedback.className = "text-success text-center mt-3 fw-bold";
+            document.getElementById("captchaInput").value = "";
             // Proceed to backend...
         } else {
             feedback.innerText = "FAILED: Try Again.";
