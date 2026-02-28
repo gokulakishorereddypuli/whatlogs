@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; }
+        .avatar { width: 38px; height: 38px; border-radius: 50%; background: #0d6efd;
+                   color: #fff; display: flex; align-items: center; justify-content: center;
+                   font-weight: bold; font-size: 1.1rem; flex-shrink: 0; }
+        #sessionTimer { font-size: 1rem; font-weight: bold; color: #ffc107; }
+        #timerBar { height: 6px; background: #28a745; transition: width 1s linear, background 0.5s; }
+        .table-responsive { max-height: 350px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+
+<!-- Session timeout modal -->
+<div class="modal fade" id="sessionModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Session Expiring</h5>
+      </div>
+      <div class="modal-body">
+        Your session is about to expire. Do you want to continue?
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="continueSessionBtn">Continue Session</button>
+        <button class="btn btn-secondary" onclick="doLogout()">Logout Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit username modal -->
+<div class="modal fade" id="editUsernameModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Update Username</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">New Username</label>
+          <input type="text" id="newUsernameInput" class="form-control" placeholder="Enter new username">
+        </div>
+        <div id="editUsernameFeedback" class="small fw-bold"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="saveUsernameBtn">Save</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="navbar navbar-dark bg-primary px-3">
+    <span class="navbar-brand fw-bold">&#9632; User Dashboard</span>
+    <div class="d-flex align-items-center gap-3">
+        <span id="sessionTimer" class="text-warning"></span>
+        <!-- Profile dropdown -->
+        <div class="dropdown">
+            <button class="btn btn-link p-0 d-flex align-items-center gap-2 text-white text-decoration-none"
+                    id="profileDropdown" data-bs-toggle="dropdown">
+                <div class="avatar" id="avatarInitial">?</div>
+                <span id="navUsername" class="fw-bold"></span>
+                <small>&#9660;</small>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end mt-2 shadow" style="min-width:220px;">
+                <li class="px-3 py-2 border-bottom">
+                    <div class="fw-bold" id="profileFullName"></div>
+                    <small class="text-muted" id="profileEmail"></small>
+                </li>
+                <li class="px-3 py-1">
+                    <small class="text-muted">Master ID:</small><br>
+                    <small class="font-monospace text-break" id="profileMasterId"></small>
+                </li>
+                <li class="px-3 py-1">
+                    <small class="text-muted">Contact:</small>
+                    <small id="profileContact"></small>
+                </li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="openEditUsername()">&#9998; Update Username</a></li>
+                <li><a class="dropdown-item text-danger" href="#" onclick="doLogout()">Logout</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+<div id="timerBar" style="width:100%;"></div>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Login History</h5>
+            <small class="text-muted">Showing your past login activities</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th>#</th>
+                            <th>Login Time</th>
+                            <th>Logout Time</th>
+                            <th>IP Address</th>
+                            <th>Device / Browser</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr><td colspan="5" class="text-center text-muted py-3">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const TOKEN = sessionStorage.getItem('wl_token');
+    const SESSION_DURATION = 15 * 60;
+    let timeLeft = SESSION_DURATION;
+    let sessionInterval;
+    let sessionModalShown = false;
+    let sessionModalInstance;
+    let editUsernameModalInstance;
+
+    if (!TOKEN || sessionStorage.getItem('wl_role') !== 'user') {
+        window.location.href = '/';
+    }
+
+    function authHeaders() {
+        return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN };
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function formatDate(iso) {
+        if (!iso) return '<span class="text-muted">—</span>';
+        const d = new Date(iso);
+        return d.toLocaleString();
+    }
+
+    async function loadProfile() {
+        const res = await fetch('/user/profile', { headers: authHeaders() });
+        if (!res.ok) { window.location.href = '/'; return; }
+        const p = await res.json();
+        sessionStorage.setItem('wl_username', p.username);
+        document.getElementById('navUsername').textContent = p.username;
+        document.getElementById('avatarInitial').textContent =
+            (p.fullName || p.username || '?').charAt(0).toUpperCase();
+        document.getElementById('profileFullName').textContent = p.fullName || p.username;
+        document.getElementById('profileEmail').textContent = p.email || '';
+        document.getElementById('profileMasterId').textContent = p.masterId || '';
+        document.getElementById('profileContact').textContent = p.contact || '';
+    }
+
+    async function loadHistory() {
+        const res = await fetch('/user/history', { headers: authHeaders() });
+        if (!res.ok) return;
+        const history = await res.json();
+        const tbody = document.getElementById('historyTableBody');
+        if (!history.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-3">No login history yet.</td></tr>';
+            return;
+        }
+        // Show newest first
+        const sorted = [...history].reverse();
+        tbody.innerHTML = sorted.map((h, i) => `
+            <tr ${i === 0 ? 'class="table-primary fw-bold"' : ''}>
+                <td>${sorted.length - i}</td>
+                <td>${formatDate(h.loginTime)}</td>
+                <td>${formatDate(h.logoutTime)}</td>
+                <td><span class="font-monospace">${escapeHtml(h.ipAddress)}</span></td>
+                <td><small class="text-wrap">${escapeHtml(h.deviceName)}</small></td>
+            </tr>
+        `).join('');
+    }
+
+    function openEditUsername() {
+        document.getElementById('newUsernameInput').value = '';
+        document.getElementById('editUsernameFeedback').textContent = '';
+        editUsernameModalInstance.show();
+    }
+
+    document.getElementById('saveUsernameBtn').onclick = async () => {
+        const newUsername = document.getElementById('newUsernameInput').value.trim();
+        const fb = document.getElementById('editUsernameFeedback');
+        if (!newUsername) {
+            fb.textContent = 'Please enter a new username.';
+            fb.className = 'small fw-bold text-danger';
+            return;
+        }
+        const res = await fetch('/user/profile', {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ newUsername })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            fb.textContent = 'Username updated!';
+            fb.className = 'small fw-bold text-success';
+            sessionStorage.setItem('wl_username', data.username);
+            loadProfile();
+        } else {
+            fb.textContent = data.error || 'Update failed.';
+            fb.className = 'small fw-bold text-danger';
+        }
+    };
+
+    async function doLogout() {
+        await fetch('/logout', { method: 'POST', headers: authHeaders() });
+        sessionStorage.clear();
+        window.location.href = '/';
+    }
+
+    function updateTimerDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        document.getElementById('sessionTimer').textContent =
+            `Session: ${mins}:${secs.toString().padStart(2, '0')}`;
+        const pct = (timeLeft / SESSION_DURATION) * 100;
+        const bar = document.getElementById('timerBar');
+        bar.style.width = pct + '%';
+        bar.style.background = pct > 40 ? '#28a745' : pct > 15 ? '#ffc107' : '#dc3545';
+    }
+
+    function resetTimer() {
+        timeLeft = SESSION_DURATION;
+        sessionModalShown = false;
+        updateTimerDisplay();
+    }
+
+    function startSessionTimer() {
+        updateTimerDisplay();
+        sessionInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 60 && !sessionModalShown) {
+                sessionModalShown = true;
+                sessionModalInstance.show();
+            }
+            if (timeLeft <= 0) {
+                clearInterval(sessionInterval);
+                doLogout();
+            }
+        }, 1000);
+    }
+
+    document.getElementById('continueSessionBtn').onclick = () => {
+        sessionModalInstance.hide();
+        resetTimer();
+    };
+
+    ['click', 'keydown', 'mousemove'].forEach(evt => {
+        document.addEventListener(evt, resetTimer, { passive: true });
+    });
+
+    window.onload = () => {
+        sessionModalInstance = new bootstrap.Modal(document.getElementById('sessionModal'));
+        editUsernameModalInstance = new bootstrap.Modal(document.getElementById('editUsernameModal'));
+        loadProfile();
+        loadHistory();
+        startSessionTimer();
+    };
+</script>
+</body>
+</html>

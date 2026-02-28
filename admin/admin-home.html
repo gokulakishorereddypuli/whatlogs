@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background: #f0f2f5; }
+        .stat-card { border-radius: 12px; border: none; }
+        #sessionTimer { font-size: 1.1rem; font-weight: bold; color: #dc3545; }
+        .table-responsive { max-height: 400px; overflow-y: auto; }
+        #timerBar { height: 6px; background: #28a745; transition: width 1s linear, background 0.5s; }
+    </style>
+</head>
+<body>
+
+<!-- Session timeout modal -->
+<div class="modal fade" id="sessionModal" tabindex="-1" data-bs-backdrop="static">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-warning">
+        <h5 class="modal-title">Session Expiring</h5>
+      </div>
+      <div class="modal-body">
+        Your session is about to expire. Do you want to continue?
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="continueSessionBtn">Continue Session</button>
+        <button class="btn btn-secondary" onclick="doLogout()">Logout Now</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm freeze/activate modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="confirmTitle">Confirm Action</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="confirmBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="confirmOkBtn">Confirm</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit credentials modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit User Credentials</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Master ID</label>
+          <input type="text" id="editMasterId" class="form-control" readonly>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">New Username</label>
+          <input type="text" id="editNewUsername" class="form-control" placeholder="Leave blank to keep current">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">New Password</label>
+          <input type="password" id="editNewPassword" class="form-control" placeholder="Leave blank to keep current">
+        </div>
+        <div id="editFeedback" class="small fw-bold mt-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" id="editSaveBtn">Save Changes</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<nav class="navbar navbar-dark bg-dark px-3">
+    <span class="navbar-brand fw-bold">&#9632; Admin Dashboard</span>
+    <div class="d-flex align-items-center gap-3">
+        <span id="sessionTimer" class="text-warning"></span>
+        <span class="text-white small">Admin</span>
+        <button class="btn btn-outline-light btn-sm" onclick="doLogout()">Logout</button>
+    </div>
+</nav>
+<div id="timerBar" style="width:100%;"></div>
+
+<div class="container-fluid mt-4">
+    <!-- Stats Row -->
+    <div class="row g-3 mb-4" id="statsRow">
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-primary" id="statTotal">-</div>
+                <div class="text-muted">Total Users</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-success" id="statActive">-</div>
+                <div class="text-muted">Active Users</div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card stat-card shadow-sm text-center p-3">
+                <div class="fs-2 fw-bold text-secondary" id="statFrozen">-</div>
+                <div class="text-muted">Frozen Accounts</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Bar -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body d-flex flex-wrap gap-2 align-items-center">
+            <h5 class="mb-0 me-auto">User Management</h5>
+            <label class="btn btn-outline-primary btn-sm" title="Import CSV (columns: fullName,email,contact,username,password)">
+                &#8679; Bulk Import CSV
+                <input type="file" id="csvFileInput" accept=".csv" style="display:none" onchange="bulkImportCSV(event)">
+            </label>
+            <button class="btn btn-outline-success btn-sm" onclick="exportUsers()">&#8681; Export Users CSV</button>
+        </div>
+    </div>
+
+    <!-- User Table -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover align-middle mb-0">
+                    <thead class="table-dark sticky-top">
+                        <tr>
+                            <th>Master ID</th>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Email</th>
+                            <th>Contact</th>
+                            <th class="text-center">Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userTableBody">
+                        <tr><td colspan="7" class="text-center text-muted py-3">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="bulkFeedback" class="mt-2 small fw-bold"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const TOKEN = sessionStorage.getItem('wl_token');
+    const SESSION_DURATION = 15 * 60; // 15 minutes in seconds
+    let timeLeft = SESSION_DURATION;
+    let sessionInterval;
+    let sessionModalShown = false;
+    let sessionModalInstance;
+    let confirmModalInstance;
+    let editModalInstance;
+
+    // Redirect if not logged in as admin
+    if (!TOKEN || sessionStorage.getItem('wl_role') !== 'admin') {
+        window.location.href = '/';
+    }
+
+    function authHeaders() {
+        return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN };
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                  .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    async function loadStats() {
+        const res = await fetch('/admin/stats', { headers: authHeaders() });
+        if (res.ok) {
+            const d = await res.json();
+            document.getElementById('statTotal').textContent = d.total;
+            document.getElementById('statActive').textContent = d.active;
+            document.getElementById('statFrozen').textContent = d.frozen;
+        }
+    }
+
+    async function loadUsers() {
+        const res = await fetch('/admin/users', { headers: authHeaders() });
+        if (!res.ok) { window.location.href = '/'; return; }
+        const users = await res.json();
+        const tbody = document.getElementById('userTableBody');
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No registered users yet.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map(u => `
+            <tr>
+                <td><small class="text-muted font-monospace">${escapeHtml(u.masterId)}</small></td>
+                <td>${escapeHtml(u.username)}</td>
+                <td>${escapeHtml(u.fullName)}</td>
+                <td>${escapeHtml(u.email)}</td>
+                <td>${escapeHtml(u.contact)}</td>
+                <td class="text-center">
+                    ${u.active
+                        ? '<span class="badge bg-success">Active</span>'
+                        : '<span class="badge bg-secondary">Frozen</span>'}
+                </td>
+                <td class="text-center">
+                    <div class="d-flex gap-1 justify-content-center flex-wrap">
+                        ${u.active
+                            ? `<button class="btn btn-sm btn-warning fw-bold" onclick="confirmToggle('${escapeHtml(u.masterId)}','${escapeHtml(u.username)}',false)">Freeze</button>`
+                            : `<button class="btn btn-sm btn-success fw-bold" onclick="confirmToggle('${escapeHtml(u.masterId)}','${escapeHtml(u.username)}',true)">Activate</button>`}
+                        <button class="btn btn-sm btn-info fw-bold" onclick="openEditModal('${escapeHtml(u.masterId)}','${escapeHtml(u.username)}')">Edit</button>
+                        <button class="btn btn-sm btn-outline-secondary fw-bold" onclick="downloadHistory('${escapeHtml(u.masterId)}','${escapeHtml(u.username)}')">&#8681; History</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function confirmToggle(masterId, username, activate) {
+        const action = activate ? 'activate' : 'freeze';
+        document.getElementById('confirmTitle').textContent = activate ? 'Activate Account' : 'Freeze Account';
+        document.getElementById('confirmBody').textContent =
+            `Are you sure you want to ${action} the account for "${username}"?`;
+        const btn = document.getElementById('confirmOkBtn');
+        btn.onclick = async () => {
+            confirmModalInstance.hide();
+            await fetch(`/admin/users/${encodeURIComponent(masterId)}`, {
+                method: 'PUT',
+                headers: authHeaders(),
+                body: JSON.stringify({ active: activate })
+            });
+            loadStats();
+            loadUsers();
+        };
+        confirmModalInstance.show();
+    }
+
+    function openEditModal(masterId, username) {
+        document.getElementById('editMasterId').value = masterId;
+        document.getElementById('editNewUsername').value = '';
+        document.getElementById('editNewPassword').value = '';
+        document.getElementById('editFeedback').textContent = '';
+        editModalInstance.show();
+    }
+
+    document.getElementById('editSaveBtn').onclick = async () => {
+        const masterId = document.getElementById('editMasterId').value;
+        const newUsername = document.getElementById('editNewUsername').value.trim();
+        const newPassword = document.getElementById('editNewPassword').value;
+        const fb = document.getElementById('editFeedback');
+        if (!newUsername && !newPassword) {
+            fb.textContent = 'Enter a new username or password.';
+            fb.className = 'text-danger small fw-bold mt-2';
+            return;
+        }
+        const body = {};
+        if (newUsername) body.newUsername = newUsername;
+        if (newPassword) body.newPassword = newPassword;
+        const res = await fetch(`/admin/users/${encodeURIComponent(masterId)}`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        if (res.ok) {
+            fb.textContent = 'Updated successfully.';
+            fb.className = 'text-success small fw-bold mt-2';
+            loadUsers();
+        } else {
+            fb.textContent = data.error || 'Update failed.';
+            fb.className = 'text-danger small fw-bold mt-2';
+        }
+    };
+
+    function downloadHistory(masterId, username) {
+        const link = document.createElement('a');
+        link.href = `/admin/users/${encodeURIComponent(masterId)}/history?format=csv`;
+        link.setAttribute('download', `history-${username}.csv`);
+        // For authenticated download we need to use fetch
+        fetch(link.href, { headers: authHeaders() })
+            .then(r => r.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `history-${username}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+    }
+
+    function exportUsers() {
+        fetch('/admin/users/export', { headers: authHeaders() })
+            .then(r => r.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'users.csv';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+    }
+
+    // RFC 4180 CSV parser: handles quoted fields with embedded commas and escaped quotes
+    function parseCSVLine(line) {
+        const result = [];
+        let cur = '';
+        let inQuotes = false;
+        for (let i = 0; i < line.length; i++) {
+            const ch = line[i];
+            if (inQuotes) {
+                if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+                else if (ch === '"') { inQuotes = false; }
+                else { cur += ch; }
+            } else {
+                if (ch === '"') { inQuotes = true; }
+                else if (ch === ',') { result.push(cur); cur = ''; }
+                else { cur += ch; }
+            }
+        }
+        result.push(cur);
+        return result;
+    }
+
+    async function bulkImportCSV(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const text = await file.text();
+        const lines = text.trim().split(/\r?\n/);
+        if (lines.length < 2) {
+            document.getElementById('bulkFeedback').textContent = 'CSV must have a header row and at least one data row.';
+            document.getElementById('bulkFeedback').className = 'mt-2 small fw-bold text-danger';
+            return;
+        }
+        const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+        const records = [];
+        for (let i = 1; i < lines.length; i++) {
+            if (!lines[i].trim()) continue;
+            const cols = parseCSVLine(lines[i]);
+            const rec = {};
+            headers.forEach((h, idx) => { rec[h] = (cols[idx] || '').trim(); });
+            records.push(rec);
+        }
+        const res = await fetch('/admin/users/bulk', {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ records })
+        });
+        const data = await res.json();
+        const fb = document.getElementById('bulkFeedback');
+        if (res.ok) {
+            fb.textContent = `Imported ${data.added} user(s). Skipped: ${data.skipped} (${data.skippedUsers.join(', ') || 'none'}).`;
+            fb.className = 'mt-2 small fw-bold text-success';
+            loadStats();
+            loadUsers();
+        } else {
+            fb.textContent = data.error || 'Bulk import failed.';
+            fb.className = 'mt-2 small fw-bold text-danger';
+        }
+        event.target.value = '';
+    }
+
+    async function doLogout() {
+        await fetch('/logout', { method: 'POST', headers: authHeaders() });
+        sessionStorage.clear();
+        window.location.href = '/';
+    }
+
+    // Session timer
+    function updateTimerDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        document.getElementById('sessionTimer').textContent =
+            `Session: ${mins}:${secs.toString().padStart(2, '0')}`;
+        const pct = (timeLeft / SESSION_DURATION) * 100;
+        const bar = document.getElementById('timerBar');
+        bar.style.width = pct + '%';
+        bar.style.background = pct > 40 ? '#28a745' : pct > 15 ? '#ffc107' : '#dc3545';
+    }
+
+    function resetTimer() {
+        timeLeft = SESSION_DURATION;
+        sessionModalShown = false;
+        updateTimerDisplay();
+    }
+
+    function startSessionTimer() {
+        updateTimerDisplay();
+        sessionInterval = setInterval(() => {
+            timeLeft--;
+            updateTimerDisplay();
+            if (timeLeft <= 60 && !sessionModalShown) {
+                sessionModalShown = true;
+                sessionModalInstance.show();
+            }
+            if (timeLeft <= 0) {
+                clearInterval(sessionInterval);
+                doLogout();
+            }
+        }, 1000);
+    }
+
+    document.getElementById('continueSessionBtn').onclick = () => {
+        sessionModalInstance.hide();
+        resetTimer();
+    };
+
+    // Reset timer on user activity
+    ['click', 'keydown', 'mousemove'].forEach(evt => {
+        document.addEventListener(evt, resetTimer, { passive: true });
+    });
+
+    window.onload = () => {
+        sessionModalInstance = new bootstrap.Modal(document.getElementById('sessionModal'));
+        confirmModalInstance = new bootstrap.Modal(document.getElementById('confirmModal'));
+        editModalInstance = new bootstrap.Modal(document.getElementById('editModal'));
+        loadStats();
+        loadUsers();
+        startSessionTimer();
+    };
+</script>
+</body>
+</html>
