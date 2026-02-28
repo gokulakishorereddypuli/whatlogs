@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Balanced Security Captcha</title>
+    <title>Secure Access</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; }
-        .captcha-card { border-radius: 12px; border: none; }
-        .canvas-box { 
-            background: #fff; 
-            padding: 8px; 
-            border: 2px solid #ced4da; 
+        .auth-card { border-radius: 12px; border: none; }
+        .canvas-box {
+            background: #fff;
+            padding: 8px;
+            border: 2px solid #ced4da;
             border-radius: 8px;
             display: inline-flex;
             align-items: center;
@@ -24,10 +24,11 @@
 </head>
 <body>
 
-<div class="container">
+<!-- Auth Panel -->
+<div class="container" id="authPanel">
     <div class="row justify-content-center">
         <div class="col-md-5 col-lg-4">
-            <div class="card captcha-card shadow">
+            <div class="card auth-card shadow">
                 <div class="card-body p-4">
                     <h4 class="text-center mb-4 fw-bold">Secure Access</h4>
 
@@ -86,11 +87,61 @@
     </div>
 </div>
 
+<!-- Welcome Panel (regular users after login) -->
+<div class="container" id="welcomePanel" style="display:none;">
+    <div class="row justify-content-center">
+        <div class="col-md-5 col-lg-4">
+            <div class="card auth-card shadow">
+                <div class="card-body p-4 text-center">
+                    <h4 class="fw-bold mb-3">Welcome, <span id="welcomeUsername"></span>!</h4>
+                    <p class="text-muted">You have successfully logged in.</p>
+                    <button class="btn btn-outline-secondary w-100 fw-bold" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Admin Panel -->
+<div class="container-fluid" id="adminPanel" style="display:none;">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-7">
+            <div class="card auth-card shadow">
+                <div class="card-body p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h4 class="fw-bold mb-0">Admin Panel</h4>
+                        <button class="btn btn-outline-secondary btn-sm fw-bold" onclick="logout()">Logout</button>
+                    </div>
+                    <h6 class="text-muted mb-3">User Management</h6>
+                    <div id="userList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    const ADMIN_USERNAME = 'admin';
+    const STORAGE_KEY = 'whatlogs_users';
     let hashedStorage = "";
     let autoTimer;
+    let adminPasswordHash = "";
 
-    // Standard SHA-256 Hashing for Client-Side Security
+    // Pre-compute admin password hash on load
+    sha256('admin').then(h => { adminPasswordHash = h; });
+
+    function getUsers() {
+        try {
+            return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        } catch {
+            return [];
+        }
+    }
+
+    function saveUsers(users) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    }
+
     async function sha256(str) {
         const buf = new TextEncoder().encode(str);
         const hashBuf = await crypto.subtle.digest('SHA-256', buf);
@@ -103,11 +154,8 @@
         for (let i = 0; i < 6; i++) {
             rawText += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-
         hashedStorage = await sha256(rawText);
         drawCaptcha(rawText);
-
-        // Auto-refresh logic (60 seconds)
         clearTimeout(autoTimer);
         autoTimer = setTimeout(generateCaptcha, 60000);
     }
@@ -131,27 +179,21 @@
             ctx.stroke();
         }
 
-        // 3. Draw Text with LIGHT BLUR (Reduced from 1.2px to 0.6px)
+        // 3. Draw Text with light blur
         const fonts = ["bold 30px 'Courier New'", "italic 28px Georgia", "bold 32px monospace"];
-        
         for (let i = 0; i < text.length; i++) {
-            // APPLYING REDUCED BLUR HERE
-            ctx.filter = `blur(${0.5 + Math.random() * 0.3}px)`; 
-            
+            ctx.filter = `blur(${0.5 + Math.random() * 0.3}px)`;
             ctx.font = fonts[Math.floor(Math.random() * fonts.length)];
-            ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 25%)`; // Darker text for readability
-            
+            ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 25%)`;
             const x = 20 + (i * 30);
             const y = 40 + (Math.random() * 8 - 4);
             const angle = (Math.random() * 0.3) - 0.15;
-
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(angle);
             ctx.fillText(text[i], 0, 0);
             ctx.restore();
-            
-            ctx.filter = 'none'; // Ensure lines and dots aren't overly blurred
+            ctx.filter = 'none';
         }
 
         // 4. Fine Noise
@@ -168,7 +210,6 @@
         const signupForm = document.getElementById('signupForm');
         const loginTab = document.getElementById('loginTab');
         const signupTab = document.getElementById('signupTab');
-
         if (tab === 'login') {
             loginForm.style.display = '';
             signupForm.style.display = 'none';
@@ -182,7 +223,71 @@
         }
     }
 
-    // Login: verify captcha then POST credentials to /login
+    function logout() {
+        document.getElementById('authPanel').style.display = '';
+        document.getElementById('welcomePanel').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'none';
+        document.getElementById('loginForm').reset();
+        document.getElementById('loginFeedback').innerText = '';
+        generateCaptcha();
+    }
+
+    function escapeHtml(str) {
+        return str
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderAdminPanel() {
+        const users = getUsers();
+        const userList = document.getElementById('userList');
+        if (users.length === 0) {
+            userList.innerHTML = '<p class="text-muted text-center">No registered users yet.</p>';
+            return;
+        }
+        userList.innerHTML = `
+            <table class="table table-bordered table-hover align-middle">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Username</th>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${users.map(u => `
+                        <tr>
+                            <td>${escapeHtml(u.username)}</td>
+                            <td class="text-center">
+                                ${u.active
+                                    ? '<span class="badge bg-success">Active</span>'
+                                    : '<span class="badge bg-secondary">Frozen</span>'}
+                            </td>
+                            <td class="text-center">
+                                ${u.active
+                                    ? `<button class="btn btn-sm btn-warning fw-bold" onclick="toggleUser('${escapeHtml(u.username)}', false)">Freeze</button>`
+                                    : `<button class="btn btn-sm btn-success fw-bold" onclick="toggleUser('${escapeHtml(u.username)}', true)">Activate</button>`}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
+    }
+
+    function toggleUser(username, active) {
+        const users = getUsers();
+        const user = users.find(u => u.username === username);
+        if (user) {
+            user.active = active;
+            saveUsers(users);
+            renderAdminPanel();
+        }
+    }
+
+    // Login: verify captcha then authenticate via localStorage
     document.getElementById("loginForm").onsubmit = async function(e) {
         e.preventDefault();
         const userInput = document.getElementById("captchaInput").value;
@@ -199,30 +304,48 @@
 
         const username = document.getElementById("loginUsername").value.trim();
         const password = document.getElementById("loginPassword").value;
+        const passwordHash = await sha256(password);
 
-        try {
-            const res = await fetch('/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                feedback.innerText = "SUCCESS: " + data.message;
-                feedback.className = "text-success text-center mt-3 fw-bold";
+        // Admin login check
+        if (username === ADMIN_USERNAME) {
+            if (passwordHash === adminPasswordHash) {
+                document.getElementById('authPanel').style.display = 'none';
+                document.getElementById('adminPanel').style.display = '';
+                renderAdminPanel();
             } else {
-                feedback.innerText = "FAILED: " + data.error;
+                feedback.innerText = "FAILED: Invalid username or password.";
                 feedback.className = "text-danger text-center mt-3 fw-bold";
                 generateCaptcha();
                 document.getElementById("captchaInput").value = "";
             }
-        } catch {
-            feedback.innerText = "Error: Could not reach server.";
-            feedback.className = "text-danger text-center mt-3 fw-bold";
+            return;
         }
+
+        // Regular user login
+        const users = getUsers();
+        const user = users.find(u => u.username === username);
+        if (!user || user.passwordHash !== passwordHash) {
+            feedback.innerText = "FAILED: Invalid username or password.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+            generateCaptcha();
+            document.getElementById("captchaInput").value = "";
+            return;
+        }
+        if (!user.active) {
+            feedback.innerText = "FAILED: Your account has been frozen. Please contact admin.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+            generateCaptcha();
+            document.getElementById("captchaInput").value = "";
+            return;
+        }
+
+        // Successful user login
+        document.getElementById('authPanel').style.display = 'none';
+        document.getElementById('welcomeUsername').innerText = username;
+        document.getElementById('welcomePanel').style.display = '';
     };
 
-    // Signup: POST credentials to /signup (server hashes password before storing)
+    // Signup: store hashed password in localStorage
     document.getElementById("signupForm").onsubmit = async function(e) {
         e.preventDefault();
         const feedback = document.getElementById("signupFeedback");
@@ -230,31 +353,32 @@
         const password = document.getElementById("signupPassword").value;
         const confirm = document.getElementById("signupConfirm").value;
 
+        if (username === ADMIN_USERNAME) {
+            feedback.innerText = "FAILED: This username is reserved.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+            return;
+        }
+
         if (password !== confirm) {
             feedback.innerText = "Passwords do not match.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
             return;
         }
 
-        try {
-            const res = await fetch('/signup', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
-            });
-            const data = await res.json();
-            if (res.ok) {
-                feedback.innerText = "SUCCESS: " + data.message;
-                feedback.className = "text-success text-center mt-3 fw-bold";
-                document.getElementById("signupForm").reset();
-            } else {
-                feedback.innerText = "FAILED: " + data.error;
-                feedback.className = "text-danger text-center mt-3 fw-bold";
-            }
-        } catch {
-            feedback.innerText = "Error: Could not reach server.";
+        const users = getUsers();
+        if (users.find(u => u.username === username)) {
+            feedback.innerText = "FAILED: Username already exists.";
             feedback.className = "text-danger text-center mt-3 fw-bold";
+            return;
         }
+
+        const passwordHash = await sha256(password);
+        users.push({ username, passwordHash, active: true });
+        saveUsers(users);
+
+        feedback.innerText = "SUCCESS: Account created. You can now login.";
+        feedback.className = "text-success text-center mt-3 fw-bold";
+        document.getElementById("signupForm").reset();
     };
 
     window.onload = generateCaptcha;
