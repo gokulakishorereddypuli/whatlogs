@@ -1,0 +1,11 @@
+[
+  {
+    "id": "5943a29bac049c4d002b23c53a32838d",
+    "masterId": "770221d2138c1534e51dff3eaf5dada8",
+    "username": "john",
+    "loginTime": "2026-02-28T12:26:10.956Z",
+    "logoutTime": null,
+    "ipAddress": "::1",
+    "deviceName": "curl/8.5.0"
+  }
+]

@@ -8,11 +8,11 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background: #f0f2f5; min-height: 100vh; display: flex; align-items: center; }
-        .captcha-card { border-radius: 12px; border: none; }
-        .canvas-box { 
-            background: #fff; 
-            padding: 8px; 
-            border: 2px solid #ced4da; 
+        .auth-card { border-radius: 12px; border: none; }
+        .canvas-box {
+            background: #fff;
+            padding: 8px;
+            border: 2px solid #ced4da;
             border-radius: 8px;
             display: inline-flex;
             align-items: center;
@@ -25,30 +25,72 @@
 </head>
 <body>
 
-<div class="container">
+<!-- Auth Panel -->
+<div class="container" id="authPanel">
     <div class="row justify-content-center">
         <div class="col-md-5 col-lg-4">
-            <div class="card captcha-card shadow">
+            <div class="card auth-card shadow">
                 <div class="card-body p-4">
                     <h4 class="text-center mb-4 fw-bold">Secure Access</h4>
-                    <form id="captchaForm">
+
+                    <!-- Tab Navigation -->
+                    <ul class="nav nav-tabs mb-4" id="authTabs">
+                        <li class="nav-item w-50 text-center">
+                            <a class="nav-link active fw-bold" id="loginTab" href="#" onclick="showTab('login'); return false;">Login</a>
+                        </li>
+                        <li class="nav-item w-50 text-center">
+                            <a class="nav-link fw-bold" id="signupTab" href="#" onclick="showTab('signup'); return false;">Sign Up</a>
+                        </li>
+                    </ul>
+
+                    <!-- Login Form -->
+                    <form id="loginForm">
                         <div class="mb-3">
-                            <input type="text" class="form-control" placeholder="Email Address" required>
+                            <input type="text" id="loginUsername" class="form-control" placeholder="Username" required>
                         </div>
-                        
+                        <div class="mb-3">
+                            <input type="password" id="loginPassword" class="form-control" placeholder="Password" required>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label small fw-bold text-secondary">Verify Identity</label>
                             <div class="canvas-box w-100 justify-content-between mb-2">
                                 <canvas id="captchaCanvas" width="200" height="60"></canvas>
                                 <span class="refresh-btn px-2" onclick="generateCaptcha()" title="Refresh Code">&#x21bb;</span>
                             </div>
-                            <input type="text" id="captchaInput" class="form-control form-control-lg text-center" 
+                            <input type="text" id="captchaInput" class="form-control form-control-lg text-center"
                                    placeholder="Enter the code" maxlength="6" autocomplete="off" required>
                         </div>
 
                         <button type="submit" class="btn btn-primary w-100 fw-bold py-2">Sign In</button>
-                        <div id="feedback" class="text-center mt-3 small fw-bold"></div>
+                        <div id="loginFeedback" class="text-center mt-3 small fw-bold"></div>
                     </form>
+
+                    <!-- Signup Form -->
+                    <form id="signupForm" style="display:none;">
+                        <div class="mb-3">
+                            <input type="text" id="signupFullName" class="form-control" placeholder="Full Name">
+                        </div>
+                        <div class="mb-3">
+                            <input type="email" id="signupEmail" class="form-control" placeholder="Email">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" id="signupContact" class="form-control" placeholder="Contact Number">
+                        </div>
+                        <div class="mb-3">
+                            <input type="text" id="signupUsername" class="form-control" placeholder="Username" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" id="signupPassword" class="form-control" placeholder="Password" required>
+                        </div>
+                        <div class="mb-3">
+                            <input type="password" id="signupConfirm" class="form-control" placeholder="Confirm Password" required>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100 fw-bold py-2">Create Account</button>
+                        <div id="signupFeedback" class="text-center mt-3 small fw-bold"></div>
+                    </form>
+
                 </div>
             </div>
         </div>
@@ -60,7 +102,6 @@
     let hashedStorage = "";
     let autoTimer;
 
-    // Standard SHA-256 Hashing for Client-Side Security
     async function sha256(str) {
         const buf = new TextEncoder().encode(str);
         const hashBuf = await crypto.subtle.digest('SHA-256', buf);
@@ -73,11 +114,8 @@
         for (let i = 0; i < 6; i++) {
             rawText += chars.charAt(Math.floor(Math.random() * chars.length));
         }
-
         hashedStorage = await sha256(rawText);
         drawCaptcha(rawText);
-
-        // Auto-refresh logic (60 seconds)
         clearTimeout(autoTimer);
         autoTimer = setTimeout(generateCaptcha, 60000);
     }
@@ -101,27 +139,21 @@
             ctx.stroke();
         }
 
-        // 3. Draw Text with LIGHT BLUR (Reduced from 1.2px to 0.6px)
+        // 3. Draw Text with light blur
         const fonts = ["bold 30px 'Courier New'", "italic 28px Georgia", "bold 32px monospace"];
-        
         for (let i = 0; i < text.length; i++) {
-            // APPLYING REDUCED BLUR HERE
-            ctx.filter = `blur(${0.5 + Math.random() * 0.3}px)`; 
-            
+            ctx.filter = `blur(${0.5 + Math.random() * 0.3}px)`;
             ctx.font = fonts[Math.floor(Math.random() * fonts.length)];
-            ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 25%)`; // Darker text for readability
-            
+            ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 25%)`;
             const x = 20 + (i * 30);
             const y = 40 + (Math.random() * 8 - 4);
             const angle = (Math.random() * 0.3) - 0.15;
-
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate(angle);
             ctx.fillText(text[i], 0, 0);
             ctx.restore();
-            
-            ctx.filter = 'none'; // Ensure lines and dots aren't overly blurred
+            ctx.filter = 'none';
         }
 
         // 4. Fine Noise
@@ -133,11 +165,30 @@
         }
     }
 
-    document.getElementById("captchaForm").onsubmit = async function(e) {
+    function showTab(tab) {
+        const loginForm = document.getElementById('loginForm');
+        const signupForm = document.getElementById('signupForm');
+        const loginTab = document.getElementById('loginTab');
+        const signupTab = document.getElementById('signupTab');
+        if (tab === 'login') {
+            loginForm.style.display = '';
+            signupForm.style.display = 'none';
+            loginTab.classList.add('active');
+            signupTab.classList.remove('active');
+        } else {
+            loginForm.style.display = 'none';
+            signupForm.style.display = '';
+            loginTab.classList.remove('active');
+            signupTab.classList.add('active');
+        }
+    }
+
+    // Login: verify captcha then POST /login
+    document.getElementById("loginForm").onsubmit = async function(e) {
         e.preventDefault();
         const userInput = document.getElementById("captchaInput").value;
         const userHashed = await sha256(userInput);
-        const feedback = document.getElementById("feedback");
+        const feedback = document.getElementById("loginFeedback");
 
         if (userHashed === hashedStorage) {
             document.getElementById("captchaForm").classList.add("d-none");
@@ -151,6 +202,76 @@
             feedback.className = "text-danger text-center mt-3 fw-bold";
             generateCaptcha();
             document.getElementById("captchaInput").value = "";
+            return;
+        }
+
+        const username = document.getElementById("loginUsername").value.trim();
+        const password = document.getElementById("loginPassword").value;
+
+        try {
+            const res = await fetch('/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                sessionStorage.setItem('wl_token', data.token);
+                sessionStorage.setItem('wl_role', data.role);
+                sessionStorage.setItem('wl_username', username);
+                if (data.masterId) sessionStorage.setItem('wl_masterId', data.masterId);
+                if (data.role === 'admin') {
+                    window.location.href = '/admin/admin-home.html';
+                } else {
+                    window.location.href = '/user/user-home.html';
+                }
+            } else {
+                feedback.innerText = "FAILED: " + (data.error || 'Login failed.');
+                feedback.className = "text-danger text-center mt-3 fw-bold";
+                generateCaptcha();
+                document.getElementById("captchaInput").value = "";
+            }
+        } catch {
+            feedback.innerText = "Error connecting to server.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+        }
+    };
+
+    // Signup: POST /signup with all fields
+    document.getElementById("signupForm").onsubmit = async function(e) {
+        e.preventDefault();
+        const feedback = document.getElementById("signupFeedback");
+        const username = document.getElementById("signupUsername").value.trim();
+        const password = document.getElementById("signupPassword").value;
+        const confirm = document.getElementById("signupConfirm").value;
+        const fullName = document.getElementById("signupFullName").value.trim();
+        const email = document.getElementById("signupEmail").value.trim();
+        const contact = document.getElementById("signupContact").value.trim();
+
+        if (password !== confirm) {
+            feedback.innerText = "Passwords do not match.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
+            return;
+        }
+
+        try {
+            const res = await fetch('/signup', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password, fullName, email, contact })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                feedback.innerText = "SUCCESS: Account created. You can now login.";
+                feedback.className = "text-success text-center mt-3 fw-bold";
+                document.getElementById("signupForm").reset();
+            } else {
+                feedback.innerText = "FAILED: " + (data.error || 'Signup failed.');
+                feedback.className = "text-danger text-center mt-3 fw-bold";
+            }
+        } catch {
+            feedback.innerText = "Error connecting to server.";
+            feedback.className = "text-danger text-center mt-3 fw-bold";
         }
     };
 
