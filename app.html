@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NovaSoft · Where the world builds software</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+        .github-gradient { background: linear-gradient(180deg, rgba(22,27,34,0) 0%, #0d1117 100%); }
+        .btn-primary { background-color: #238636; border: 1px solid rgba(240,246,252,0.1); }
+        .btn-primary:hover { background-color: #2ea043; }
+        .border-github { border-color: #30363d; }
+        .nav-link:hover { color: #8b949e; }
+    </style>
+</head>
+<body>
+
+    <nav class="flex items-center justify-between px-8 py-4 bg-[#161b22] border-b border-github">
+        <div class="flex items-center space-x-4">
+            <i class="fab fa-github text-3xl text-white"></i>
+            <div class="hidden md:flex space-x-4 text-sm font-semibold text-white">
+                <a href="#" class="nav-link">Product</a>
+                <a href="#" class="nav-link">Solutions</a>
+                <a href="#" class="nav-link">Open Source</a>
+                <a href="#" class="nav-link">Pricing</a>
+            </div>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="relative">
+                <input type="text" placeholder="Search or jump to..." class="bg-[#0d1117] border border-github rounded-md px-3 py-1 text-xs w-64 focus:w-80 transition-all outline-none">
+                <span class="absolute right-2 top-1 border border-github rounded px-1 text-[10px] text-gray-500">/</span>
+            </div>
+            <a href="#" class="text-sm font-semibold text-white hover:text-gray-300">Sign in</a>
+            <a href="#" class="text-sm font-semibold text-white border border-github rounded-md px-3 py-1 hover:bg-[#30363d]">Sign up</a>
+        </div>
+    </nav>
+
+    <header class="relative pt-20 pb-32 px-10 overflow-hidden">
+        <div class="max-w-6xl mx-auto flex flex-col md:flex-row items-center">
+            <div class="md:w-2/3 z-10">
+                <h1 class="text-6xl md:text-8xl font-bold text-white leading-tight mb-6">
+                    Let’s build from here
+                </h1>
+                <p class="text-xl md:text-2xl text-[#8b949e] mb-10 max-w-2xl">
+                    The world’s most advanced software development company. Helping teams ship secure code faster with AI-powered tools.
+                </p>
+                <div class="flex space-x-4">
+                    <input type="email" placeholder="Email address" class="bg-white text-black px-4 py-3 rounded-l-md w-80 outline-none">
+                    <button class="btn-primary text-white font-bold px-6 py-3 rounded-r-md">Sign up for NovaSoft</button>
+                </div>
+            </div>
+            <div class="hidden md:block absolute right-0 top-10 opacity-50">
+                <i class="fas fa-globe-americas text-[400px] text-[#30363d]"></i>
+            </div>
+        </div>
+    </header>
+
+    <section class="max-w-6xl mx-auto px-10 py-20">
+        <h2 class="text-white text-2xl mb-8 font-semibold">Our Expertise</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <div class="border border-github rounded-lg p-6 bg-[#161b22] hover:border-[#8b949e] transition-colors">
+                <div class="flex items-center justify-between mb-2">
+                    <a href="#" class="text-[#58a6ff] font-semibold text-lg hover:underline">cloud-native-architecture</a>
+                    <span class="text-xs border border-github rounded-full px-2 py-0.5 text-[#8b949e]">Public</span>
+                </div>
+                <p class="text-sm text-[#8b949e] mb-4">Scalable microservices and Kubernetes orchestration for enterprise-grade applications.</p>
+                <div class="flex items-center space-x-4 text-xs text-[#8b949e]">
+                    <span><i class="fas fa-circle text-yellow-400 mr-1"></i> JavaScript</span>
+                    <span><i class="far fa-star mr-1"></i> 1.2k</span>
+                    <span>Updated 2 days ago</span>
+                </div>
+            </div>
+
+            <div class="border border-github rounded-lg p-6 bg-[#161b22] hover:border-[#8b949e] transition-colors">
+                <div class="flex items-center justify-between mb-2">
+                    <a href="#" class="text-[#58a6ff] font-semibold text-lg hover:underline">ai-integration-engine</a>
+                    <span class="text-xs border border-github rounded-full px-2 py-0.5 text-[#8b949e]">Public</span>
+                </div>
+                <p class="text-sm text-[#8b949e] mb-4">Custom LLM implementations and machine learning pipelines for predictive data analytics.</p>
+                <div class="flex items-center space-x-4 text-xs text-[#8b949e]">
+                    <span><i class="fas fa-circle text-blue-500 mr-1"></i> Python</span>
+                    <span><i class="far fa-star mr-1"></i> 843</span>
+                    <span>Updated 5 hours ago</span>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <footer class="max-w-6xl mx-auto px-10 py-20 border-t border-github flex flex-col md:flex-row justify-between text-xs text-[#8b949e]">
+        <div class="flex items-center space-x-4 mb-6 md:mb-0">
+            <i class="fab fa-github text-2xl opacity-50"></i>
+            <span>© 2026 NovaSoft, Inc.</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+            <div class="flex flex-col space-y-2">
+                <span class="text-white font-bold">Product</span>
+                <a href="#" class="hover:text-[#58a6ff]">Features</a>
+                <a href="#" class="hover:text-[#58a6ff]">Security</a>
+            </div>
+            <div class="flex flex-col space-y-2">
+                <span class="text-white font-bold">Company</span>
+                <a href="#" class="hover:text-[#58a6ff]">About</a>
+                <a href="#" class="hover:text-[#58a6ff]">Careers</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+</html>
